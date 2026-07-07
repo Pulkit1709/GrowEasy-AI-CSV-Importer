@@ -6,7 +6,7 @@ Production-grade assignment build for GrowEasy CRM. The app uploads arbitrary le
 
 - Next.js App Router + TypeScript
 - Route-handler backend with controller/service separation
-- Ollama or Groq for AI extraction
+- Groq for AI extraction
 - PapaParse for CSV parsing
 - Zod validation
 - react-window virtualized tables
@@ -22,21 +22,11 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-Run Ollama locally:
-
-```bash
-ollama pull llama3.1
-ollama serve
-```
-
 Environment variables:
 
-- `AI_PROVIDER`: selects the extraction backend. `ollama` (default) runs against a local Ollama instance for development; `groq` runs against Groq's hosted OpenAI-compatible API for production/public deployment where a local model isn't reachable. The same prompt, batching, and validation logic runs unchanged against either provider.
-- `OLLAMA_BASE_URL`: defaults to `http://localhost:11434`
-- `OLLAMA_MODEL`: defaults to `llama3.1`
-- `OLLAMA_ALLOW_HEURISTIC_FALLBACK`: defaults to `true`; set `false` if failed Ollama batches should fail instead of using the deterministic fallback mapper
-- `GROQ_API_KEY`: required when `AI_PROVIDER=groq`
-- `GROQ_MODEL`: defaults to `llama-3.3-70b-versatile`
+- `AI_PROVIDER`: selects the extraction backend. Set to `groq` to use Groq's hosted OpenAI-compatible API.
+- `GROQ_API_KEY`: required when `AI_PROVIDER=groq`.
+- `GROQ_MODEL`: defaults to `llama-3.3-70b-versatile`.
 
 ## API Contract
 
@@ -62,7 +52,7 @@ Tests cover CSV edge cases, enum validation, skip-rule logic, batch splitting, a
 
 ## Deployment
 
-Single-repo deployment works on Vercel. Set the Ollama environment variables to point at an accessible Ollama host, or deploy a backend/runtime where Ollama is reachable. For the publicly deployed instance, set `AI_PROVIDER=groq` and `GROQ_API_KEY` in the hosting platform's environment variables so extraction does not depend on a locally-running Ollama instance. Docker is included for self-hosted deployment:
+Single-repo deployment works on Vercel. Set `AI_PROVIDER=groq` and `GROQ_API_KEY` in the hosting platform's environment variables so the app can use Groq for extraction. Docker is included for self-hosted deployment:
 
 ```bash
 docker build -t groweasy-importer .
