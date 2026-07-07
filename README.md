@@ -66,6 +66,3 @@ docker build -t groweasy-importer .
 docker run -p 3000:3000 --env-file .env.local groweasy-importer
 ```
 
-## Submission Note
-
-Applicant track: Software Developer Intern / Full-Time assignment for GrowEasy. Submit the public app URL and GitHub repository URL before 12 July 2026.
