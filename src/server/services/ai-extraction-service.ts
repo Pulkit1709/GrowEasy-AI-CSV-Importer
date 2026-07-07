@@ -1,32 +1,8 @@
 import { buildSystemPrompt, buildUserPrompt } from "@/server/services/prompt-service";
 import { mapRowsHeuristically } from "@/server/services/heuristic-mapper";
 import { detectContactPresence, sanitizeCrmRecord, shouldSkipRecord } from "@/server/services/validation-service";
+import { callLLM } from "@/server/services/llm-client";
 import type { BatchResult, CrmRecord, ImportResult, RawRecord, SkippedRecord } from "@/types/import";
-
-async function askOllama(rows: RawRecord[]) {
-  const baseUrl = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434";
-  const model = process.env.OLLAMA_MODEL ?? "llama3.1";
-  const response = await fetch(`${baseUrl.replace(/\/$/, "")}/api/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      stream: false,
-      options: { temperature: 0, num_ctx: 8192 },
-      messages: [
-        { role: "system", content: buildSystemPrompt() },
-        { role: "user", content: buildUserPrompt(rows) }
-      ]
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error(`Ollama responded with ${response.status}`);
-  }
-
-  const payload = await response.json() as { message?: { content?: string } };
-  return payload.message?.content ?? "";
-}
 
 function parseJsonArray(content: string) {
   const trimmed = content.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
@@ -38,12 +14,15 @@ function parseJsonArray(content: string) {
 }
 
 async function extractBatch(rows: RawRecord[]) {
+  const systemPrompt = buildSystemPrompt();
+  const userPrompt = buildUserPrompt(rows);
+
   try {
-    const first = parseJsonArray(await askOllama(rows));
+    const first = parseJsonArray(await callLLM(systemPrompt, userPrompt));
     return first;
   } catch (firstError) {
-    console.warn("First Ollama attempt failed; retrying batch once", firstError);
-    const second = parseJsonArray(await askOllama(rows));
+    console.warn("First LLM attempt failed; retrying batch once", firstError);
+    const second = parseJsonArray(await callLLM(systemPrompt, userPrompt));
     return second;
   }
 }
@@ -85,11 +64,11 @@ export async function processBatches(
       let rawMapped: unknown[];
       try {
         rawMapped = await extractBatch(batch.rows);
-      } catch (ollamaError) {
+      } catch (llmError) {
         if ((process.env.OLLAMA_ALLOW_HEURISTIC_FALLBACK ?? "true") !== "true") {
-          throw ollamaError;
+          throw llmError;
         }
-        console.warn("Using heuristic fallback because Ollama extraction failed", ollamaError);
+        console.warn("Using heuristic fallback because LLM extraction failed", llmError);
         rawMapped = mapRowsHeuristically(batch.rows);
       }
 
